@@ -1,6 +1,10 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, } from 'react-native';
+import Toast from 'react-native-toast-message';
+import config from '../config';
 
 const Otp = () => {
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -45,26 +49,61 @@ const Otp = () => {
         }
     };
 
-    const handleProceed = () => {
+    const handleProceed = async () => {
         const enteredOtp = otp.join('');
-        console.log('Entered OTP:', enteredOtp);
-        router.push("/profile")
-    };
+        if (enteredOtp.length !== 6) {
+            Toast.show({ type: 'error', text1: 'Please enter 6-digit OTP' });
+            return;
+        }
 
-    const handleResend = () => {
-        if (timer === 0) {
-            console.log('Resending OTP');
-            setTimer(60); // Reset the timer
-            setOtp(['', '', '', '', '', '']); // Clear OTP input fields
-            if (inputRefs.current[0]) {
-                inputRefs.current[0].focus();
+        try {
+            const phone_number = await AsyncStorage.getItem("phone_number");
+            const response = await axios.post(`${config.baseUrl}/rider/verify/otp`, {
+                phone_number,
+                otp: enteredOtp
+            });
+
+            const { code, msg, data } = response.data;
+
+            if (code === 200) {
+                Toast.show({ type: 'success', text1: msg });
+                await AsyncStorage.removeItem("phone_number");
+                setTimeout(() => {
+                    router.push("/profile/name");
+                }, 2000);
             }
-            // Implement your OTP resend API call here
-        } else {
-            console.log('Resend available after timer expires');
-            // Optionally show a message to the user
+        } catch (error) {
+            const { msg, code } = error?.response?.data || {};
+            Toast.show({ type: 'error', text1: msg || 'Error verifying OTP' });
         }
     };
+
+
+    const handleResend = async () => {
+        if (timer > 0) {
+            Toast.show({ type: 'info', text1: `Please wait ${timer}s before resending` });
+            return;
+        }
+
+        try {
+            const phone_number = await AsyncStorage.getItem("phone_number");
+
+            const response = await axios.post(`${config.baseUrl}/rider/send/otp`, {phone_number});
+            const { code, msg } = response.data;
+            if (code === 200) {
+                Toast.show({ type: 'success', text1: msg });
+                setTimer(60);
+                setOtp(['', '', '', '', '', '']);
+                if (inputRefs.current[0]) inputRefs.current[0].focus();
+            } else {
+                Toast.show({ type: 'error', text1: msg || 'Failed to resend OTP' });
+            }
+        } catch (error) {
+            const { msg } = error?.response?.data || {};
+            Toast.show({ type: 'error', text1: msg || 'Error resending OTP' });
+        }
+    };
+
 
     const formatTime = (seconds) => {
         const minutes = Math.floor(seconds / 60);

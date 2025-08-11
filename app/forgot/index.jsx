@@ -1,30 +1,74 @@
-import React, { useState } from 'react';
-import {View,Text,TextInput,TouchableOpacity,StyleSheet,} from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import { router } from 'expo-router';
+import { useState } from 'react';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View, } from 'react-native';
+import { SvgUri } from 'react-native-svg';
+import Toast from 'react-native-toast-message';
+import CountryCodeModal from '../../components/CountryCodeModal';
+import config from '../../config';
 
 const Email = () => {
-  const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [selectedCountryCode, setSelectedCountryCode] = useState({ name: 'America', dial_code: '+1', code: 'US' });
+  const [isCountryModalVisible, setIsCountryModalVisible] = useState(false);
   const greenColor = '#2ECC71';
 
-  const handleProceed = () => {
-    console.log('Proceeding with email:', email);
+  const handleProceed = async () => {
+    const fullPhoneNumber = selectedCountryCode.dial_code + phoneNumber;
+    if (!phoneNumber) {
+      Toast.show({ type: "error", text1: "Please fill in all fields" });
+      return;
+    }
+
+    try {
+      const response = await axios.post(`${config.baseUrl}/rider/send/otp`, { phone_number: fullPhoneNumber });
+      const { code, msg } = response.data;
+      if (code === 200) {
+        Toast.show({ type: 'success', text1: msg });
+        console.log(fullPhoneNumber,'fullPhoneNumber')
+        AsyncStorage.setItem("phone_number", fullPhoneNumber)
+        router.push("/forgot/otp")
+      }
+      else {
+        Toast.show({ type: 'error', text1: msg || 'Failed to resend OTP' });
+      }
+    } catch (error) {
+      const { msg } = error?.response?.data || {};
+      Toast.show({ type: 'error', text1: msg || 'Error resending OTP' });
+    }
+
     router.push("/forgot/otp")
+  };
+
+  const toggleCountryModal = () => {
+    setIsCountryModalVisible(!isCountryModalVisible);
+  };
+  const handleCountrySelect = (country) => {
+    setSelectedCountryCode(country);
+    setIsCountryModalVisible(false);
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Forgot password</Text>
-      <Text style={styles.subtitle}>Enter the associated email address</Text>
+      <Text style={styles.subtitle}>Enter the associated phone number</Text>
 
-      <View style={styles.inputContainer}>
-        <FontAwesome name="envelope-o" size={20} color="gray" style={styles.icon} />
-        <TextInput style={styles.input} placeholder="Email Address" placeholderTextColor="gray" keyboardType="email-address"value={email}onChangeText={setEmail}/>
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 10 }}>
+        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: "#F8FAFC", padding: 10, borderRadius: 7 }} onPress={toggleCountryModal}>
+          <SvgUri width={24} height={24} uri={`https://country-code-au6g.vercel.app/${selectedCountryCode?.code}.svg`} resizeMode="contain" />
+          <Text style={{ fontSize: 16, color: '#333', marginLeft: 10 }}>{selectedCountryCode.dial_code}</Text>
+        </TouchableOpacity>
+        <TextInput placeholderTextColor={"#000"} style={{ flex: 1, height: 48, paddingHorizontal: 12, fontSize: 16, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: "#F8FAFC", padding: 10, borderRadius: 7 }} placeholder="Phone number" keyboardType="phone-pad" value={phoneNumber} onChangeText={setPhoneNumber} />
       </View>
 
       <TouchableOpacity style={[styles.proceedButton, { backgroundColor: greenColor }]} onPress={handleProceed}>
         <Text style={styles.proceedButtonText}>Proceed</Text>
       </TouchableOpacity>
+
+      <CountryCodeModal isVisible={isCountryModalVisible} onClose={toggleCountryModal} onSelect={handleCountrySelect} />
+
     </View>
   );
 };
@@ -34,13 +78,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f9f9f9',
     paddingHorizontal: 30,
-    paddingTop:50
+    paddingTop: 50
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom:5,
+    marginBottom: 5,
   },
   subtitle: {
     color: '#777',

@@ -1,26 +1,63 @@
 import { FontAwesome } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SvgUri } from 'react-native-svg';
+import Toast from 'react-native-toast-message';
 import Logo from '../assets/images/splash-icon2.png';
 import CountryCodeModal from '../components/CountryCodeModal';
+import config from '../config';
 
 const greenColor = '#34BF02';
 const googleIconSource = { uri: "https://cdn1.iconfinder.com/data/icons/google-s-logo/150/Google_Icons-09-512.png" };
 
 const Register = () => {
-    const [email, setEmail] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
+    const [password, setPassword] = useState('');
     const [selectedCountryCode, setSelectedCountryCode] = useState({ name: 'America', dial_code: '+1', code: 'US' });
     const [isCountryModalVisible, setIsCountryModalVisible] = useState(false);
 
     const handleSignIn = () => {
-        router.push("/otp")
+        router.push("/login")
     };
 
-    const handleSignUp = () => {
-        router.push("/login")
+    const handleSignUp = async () => {
+        const fullPhoneNumber = selectedCountryCode.dial_code + phoneNumber;
+
+        if (!phoneNumber || !password) {
+            Toast.show({ type: 'error', text1: 'Phone and password are required' });
+            return;
+        }
+
+        const validPhone = /^\d{9,13}$/;
+        if (!validPhone.test(phoneNumber)) {
+            Toast.show({ type: 'error', text1: 'Invalid phone number format' });
+            return;
+        }
+
+        try {
+            const response = await axios.post(`${config.baseUrl}/rider/register`, {
+                phone_number: fullPhoneNumber,
+                password
+            });
+
+            const { status, msg, data } = response.data;
+
+            if (status === 200) {
+                Toast.show({ type: 'success', text1: msg });
+                await AsyncStorage.setItem("user_id", data?._id);
+                await AsyncStorage.setItem("phone_number", data?.phone_number);
+                setTimeout(() => {
+                    router.push("/otp");
+                }, 2000);
+            }
+        } catch (error) {
+            const { msg } = error?.response?.data || {};
+            console.log(msg,'msg')
+            Toast.show({ type: 'error', text1: msg});
+        }
     };
 
     const handleGoogleSignIn = () => {
@@ -54,17 +91,12 @@ const Register = () => {
 
 
 
-            <View style={{ paddingHorizontal: 10, backgroundColor: "#fff", position: "absolute", top: 150, left: 20, right: 20, borderRadius: 10}}>
+            <View style={{ paddingHorizontal: 10, backgroundColor: "#fff", position: "absolute", top: 150, left: 20, right: 20, borderRadius: 10 }}>
 
                 {/* Welcome Back Text */}
                 <Text style={styles.welcomeText}>Welcome</Text>
                 <Text style={styles.subtitle}>Input your phone number</Text>
 
-                {/* Phone Input */}
-                {/* <View style={styles.inputContainer}>
-                    <FontAwesome name="phone" size={20} color="gray" style={styles.icon} />
-                    <TextInput style={styles.input} placeholder="Phone number" placeholderTextColor="gray" keyboardType='number-pad' value={email} onChangeText={setEmail} />
-                </View> */}
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 10 }}>
                     <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: "#F8FAFC", padding: 10, borderRadius: 7 }} onPress={toggleCountryModal}>
@@ -74,9 +106,14 @@ const Register = () => {
                     <TextInput placeholderTextColor={"#000"} style={{ flex: 1, height: 48, paddingHorizontal: 12, fontSize: 16, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: "#F8FAFC", padding: 10, borderRadius: 7 }} placeholder="Phone number" keyboardType="phone-pad" value={phoneNumber} onChangeText={setPhoneNumber} />
                 </View>
 
+                <View style={styles.inputContainer}>
+                    <FontAwesome name="lock" size={20} color="gray" style={styles.icon} />
+                    <TextInput style={styles.input} placeholder="Password" placeholderTextColor="gray" secureTextEntry={true} value={password} onChangeText={setPassword} />
+                </View>
+
 
                 {/* Sign Up Button */}
-                <TouchableOpacity style={[styles.signInButton, { backgroundColor: greenColor }]} onPress={handleSignIn}>
+                <TouchableOpacity style={[styles.signInButton, { backgroundColor: greenColor }]} onPress={handleSignUp}>
                     <Text style={styles.signInText}>Sign Up</Text>
                 </TouchableOpacity>
 
@@ -95,12 +132,12 @@ const Register = () => {
                 {/* Don't have an account */}
                 <View style={styles.bottomContainer}>
                     <Text style={styles.bottomText}>Already have an account?</Text>
-                    <TouchableOpacity onPress={handleSignUp}>
+                    <TouchableOpacity onPress={handleSignIn}>
                         <Text style={[styles.bottomText, { color: greenColor, fontWeight: 'bold' }]}> Sign In</Text>
                     </TouchableOpacity>
                 </View>
 
-                <Text style={{ textAlign: "center", marginVertical: 20, color: "#64748B" }}>By signing up, you agree to our <Text style={{fontWeight:"bold"}}>Terms & conditions</Text>  and acknowledge our <Text style={{fontWeight:"bold"}}>Privacy Policy</Text></Text>
+                <Text style={{ textAlign: "center", marginVertical: 20, color: "#64748B" }}>By signing up, you agree to our <Text style={{ fontWeight: "bold" }}>Terms & conditions</Text>  and acknowledge our <Text style={{ fontWeight: "bold" }}>Privacy Policy</Text></Text>
             </View>
 
             <CountryCodeModal isVisible={isCountryModalVisible} onClose={toggleCountryModal} onSelect={handleCountrySelect} />

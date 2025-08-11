@@ -1,20 +1,63 @@
 import { FontAwesome } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View, } from 'react-native';
+import { SvgUri } from 'react-native-svg';
+import Toast from 'react-native-toast-message';
 import Logo from '../assets/images/splash-icon2.png';
+import CountryCodeModal from '../components/CountryCodeModal';
+import config from '../config';
 
 const Login = () => {
-    const [email, setEmail] = useState('');
+    const [phoneNumber, setPhoneNumber] = useState('');
     const [password, setPassword] = useState('');
+    const [selectedCountryCode, setSelectedCountryCode] = useState({ name: 'America', dial_code: '+1', code: 'US' });
+    const [isCountryModalVisible, setIsCountryModalVisible] = useState(false);
+
     const greenColor = '#34BF02';
     const googleIconSource = { uri: "https://cdn1.iconfinder.com/data/icons/google-s-logo/150/Google_Icons-09-512.png" };
 
     const handleSignIn = async () => {
-        router.push("/home")
-        await AsyncStorage.setItem("language", "English")
+        const fullPhoneNumber = selectedCountryCode.dial_code + phoneNumber;
+
+        if (!phoneNumber || !password) {
+            Toast.show({ type: "error", text1: "Please fill in all fields" });
+            return;
+        }
+
+        try {
+            const response = await axios.post(`${config.baseUrl}/rider/login`, {
+                phone_number: fullPhoneNumber,
+                password
+            });
+
+            const { code, msg, data } = response.data;
+
+            console.log(data, 'data')
+
+            if (code === 200) {
+                Toast.show({ type: "success", text1: msg });
+                await AsyncStorage.setItem("language", "English");
+                await AsyncStorage.setItem("user_id", data?._id);
+                router.push("/home");
+            }
+        } catch (error) {
+            let {data,code,msg} = error?.response?.data
+            console.log(data?.otp,'otp')
+            if(code===401){
+                await AsyncStorage.setItem("phone_number", data?.phone_number);
+                await AsyncStorage.setItem("user_id", data?._id);
+                Toast.show({ type: "info", text1: msg })
+                setTimeout(() => {
+                    router.push("/otp");
+                }, 2000);
+            }
+            Toast.show({ type: "error", text1: msg });
+        }
     };
+
 
     const handleForgotPassword = () => {
         router.push("/forgot")
@@ -32,6 +75,15 @@ const Login = () => {
     const handleAppleSignIn = () => {
         router.push("/home")
         console.log('Sign in with Apple');
+    };
+
+    const toggleCountryModal = () => {
+        setIsCountryModalVisible(!isCountryModalVisible);
+    };
+
+    const handleCountrySelect = (country) => {
+        setSelectedCountryCode(country);
+        setIsCountryModalVisible(false);
     };
 
     return (
@@ -54,14 +106,12 @@ const Login = () => {
                 <Text style={styles.welcomeText}>Welcome Back</Text>
                 <Text style={styles.subtitle}>Your journey starts here!</Text>
 
-                {/* Email Input */}
-                {/* <View style={styles.inputContainer}>
-                    <FontAwesome name="envelope-o" size={20} color="gray" style={styles.icon} />
-                    <TextInput style={styles.input} placeholder="Email Address" placeholderTextColor="gray" keyboardType="email-address" value={email} onChangeText={setEmail} />
-                </View> */}
-                <View style={styles.inputContainer}>
-                    <FontAwesome name="phone" size={20} color="gray" style={styles.icon} />
-                    <TextInput style={styles.input} placeholder="Phone Number" placeholderTextColor="gray" keyboardType="number-pad" value={email} onChangeText={setEmail} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 10 }}>
+                    <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: "#F8FAFC", padding: 10, borderRadius: 7 }} onPress={toggleCountryModal}>
+                        <SvgUri width={24} height={24} uri={`https://country-code-au6g.vercel.app/${selectedCountryCode?.code}.svg`} resizeMode="contain" />
+                        <Text style={{ fontSize: 16, color: '#333', marginLeft: 10 }}>{selectedCountryCode.dial_code}</Text>
+                    </TouchableOpacity>
+                    <TextInput placeholderTextColor={"#000"} style={{ flex: 1, height: 48, paddingHorizontal: 12, fontSize: 16, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: "#F8FAFC", padding: 10, borderRadius: 7 }} placeholder="Phone number" keyboardType="phone-pad" value={phoneNumber} onChangeText={setPhoneNumber} />
                 </View>
 
                 {/* Password Input */}
@@ -103,6 +153,10 @@ const Login = () => {
                     </TouchableOpacity>
                 </View>
             </View>
+
+
+            <CountryCodeModal isVisible={isCountryModalVisible} onClose={toggleCountryModal} onSelect={handleCountrySelect} />
+
 
 
         </View>

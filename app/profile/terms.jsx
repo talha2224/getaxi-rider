@@ -1,4 +1,6 @@
 import { AntDesign } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -8,6 +10,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
+import config from '../../config';
 
 const Terms = () => {
   const [agreed, setAgreed] = useState(false);
@@ -18,15 +22,37 @@ const Terms = () => {
     setAgreed(!agreed);
   };
 
-  const handleProceed = () => {
+  const handleProceed = async () => {
     if (agreed) {
-      console.log('Terms agreed. Proceeding...');
-      router.push("/profile/final")
-    }
-    else {
-      alert('Please agree to the terms and conditions to proceed.');
+      try {
+        const username = await AsyncStorage.getItem("username");
+        const payment_method = await AsyncStorage.getItem("payment_method");
+        const user_id = await AsyncStorage.getItem("user_id");
+
+        if (!username || !payment_method || !user_id) {
+          Toast.show({type: "error",text1: "Missing data",text2: "Make sure all profile fields are completed",});
+          return;
+        }
+
+        const response = await axios.put(`${config.baseUrl}/rider/update/${user_id}`,{username,payment_method,});
+
+        if (response.data.status === 200) {
+          Toast.show({type: "success",text1: "Success",text2: "Profile updated successfully",});
+          setTimeout(() => {
+            router.replace("/home");
+          }, 2000);
+        } 
+        else {
+          Toast.show({type: "error",text1: "Update failed",text2: response.data.msg || "Unexpected error",});
+        }
+      } catch (error) {
+        Toast.show({type: "error",text1: "Network Error",text2: error.response?.data?.msg || "Something went wrong",});
+      }
+    } else {
+      alert("Please agree to the terms and conditions to proceed.");
     }
   };
+
 
   return (
     <View style={styles.container}>
@@ -62,7 +88,7 @@ const Terms = () => {
 
           <Text style={styles.termsHeading}>7. Contact</Text>
           <Text style={styles.termsParagraph}>For support, reach out via [customer support email/phone].</Text>
-          
+
           <TouchableOpacity style={styles.agreementContainer} onPress={handleAgreementToggle}>
             <AntDesign name={agreed ? 'checkcircle' : 'checkcircleo'} size={15} color={agreed ? greenColor : 'gray'} style={styles.agreementCheckbox} />
             <Text style={styles.agreementText}>By signing up, you agree to these <Text style={{ fontWeight: 'bold' }}>terms</Text></Text>
@@ -82,7 +108,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop:70,
+    paddingTop: 70,
     paddingHorizontal: 30,
   },
   progressContainer: {

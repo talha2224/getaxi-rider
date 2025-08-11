@@ -1,61 +1,122 @@
-import React, { useState } from 'react';
-import {View,Text,TextInput,TouchableOpacity,StyleSheet,} from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import { router } from 'expo-router';
+import { useState } from 'react';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import Toast from 'react-native-toast-message';
+import config from '../../config'; // adjust path if needed
 
 const Password = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const greenColor = '#2ECC71';
 
-  const handleProceed = () => {
-    if (password === confirmPassword && password.length >= 6) {
-        router.push("/forgot/final")
-    } 
-    else if (password !== confirmPassword) {
+  const handleProceed = async () => {
+    if (password !== confirmPassword) {
       alert('Passwords do not match.');
-    } 
-    else {
+      return;
+    }
+
+    if (password.length < 6) {
       alert('Password must be at least 6 characters long.');
+      return;
+    }
+
+    try {
+      const phone_number = await AsyncStorage.getItem('phone_number');
+      if (!phone_number) {
+        Toast.show({
+          type: 'error',
+          text1: 'Phone number not found',
+          text2: 'Please restart the process',
+        });
+        return;
+      }
+
+      const response = await axios.post(`${config.baseUrl}/rider/change/password`, {
+        phone_number,
+        password,
+      });
+
+      if (response.data.code === 200) {
+        Toast.show({
+          type: 'success',
+          text1: 'Success',
+          text2: 'Password changed successfully',
+        });
+        router.push('/forgot/final');
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Failed',
+          text2: response.data.msg,
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error.response?.data?.msg || 'Something went wrong',
+      });
     }
   };
 
   return (
     <View style={styles.container}>
-      
       <Text style={styles.title}>Create a new password</Text>
       <Text style={styles.subtitle}>Create a new password</Text>
 
       <View style={styles.inputContainer}>
         <FontAwesome name="lock" size={20} color="gray" style={styles.icon} />
-        <TextInput style={styles.input}placeholder="Password"placeholderTextColor="gray"secureTextEntry={true} value={password} onChangeText={setPassword}/>
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          placeholderTextColor="gray"
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+        />
       </View>
 
       <View style={styles.inputContainer}>
         <FontAwesome name="lock" size={20} color="gray" style={styles.icon} />
-        <TextInput style={styles.input} placeholder="Confirm password" placeholderTextColor="gray" secureTextEntry={true}value={confirmPassword}onChangeText={setConfirmPassword}/>
+        <TextInput
+          style={styles.input}
+          placeholder="Confirm password"
+          placeholderTextColor="gray"
+          secureTextEntry
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+        />
       </View>
 
-      <TouchableOpacity style={[styles.proceedButton, { backgroundColor: greenColor }]} onPress={handleProceed}>
+      <TouchableOpacity
+        style={[styles.proceedButton, { backgroundColor: greenColor }]}
+        onPress={handleProceed}
+      >
         <Text style={styles.proceedButtonText}>Proceed</Text>
       </TouchableOpacity>
-
     </View>
   );
 };
+
+export default Password;
+
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f9f9f9',
     paddingHorizontal: 30,
-    paddingTop:60
+    paddingTop: 60
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom:5,
+    marginBottom: 5,
   },
   subtitle: {
     color: '#777',
@@ -93,5 +154,3 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
 });
-
-export default Password;

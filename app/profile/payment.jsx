@@ -1,4 +1,5 @@
 import { AntDesign, FontAwesome, FontAwesome5 } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View, } from 'react-native';
@@ -13,7 +14,7 @@ const Payment = () => {
     };
 
     const handleProceed = () => {
-        console.log('Selected Payment Method:', selectedPayment);
+        AsyncStorage.setItem('payment_method', selectedPayment);
         router.push("/profile/terms")
     };
 

@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
-import {View,Text,TextInput,TouchableOpacity,StyleSheet,} from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
+import { useState } from 'react';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View, } from 'react-native';
 
 const Name = () => {
-  const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
   const greenColor = '#2ECC71';
   const progressBackgroundColor = '#F1F5F9';
 
   const handleProceed = () => {
-    console.log('Full Name:', fullName);
+    AsyncStorage.setItem('username', username);
     router.push("/profile/language")
   };
 
@@ -29,7 +30,7 @@ const Name = () => {
 
         <View style={styles.inputContainer}>
           <FontAwesome name="user-o" size={20} color="gray" style={styles.icon} />
-          <TextInput style={styles.input}placeholder="Full name"placeholderTextColor="gray"value={fullName}onChangeText={setFullName}/>
+          <TextInput style={styles.input}placeholder="Full name"placeholderTextColor="gray"value={username}onChangeText={setUsername}/>
         </View>
 
         <TouchableOpacity style={[styles.proceedButton, { backgroundColor: greenColor }]} onPress={handleProceed}>

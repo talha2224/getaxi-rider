@@ -1,4 +1,3 @@
-import { useColorScheme } from '@/hooks/useColorScheme';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -6,12 +5,12 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-get-random-values';
 import 'react-native-reanimated';
+import Toast from 'react-native-toast-message';
 import { ThemeProviderContext } from '../hooks/themeContext';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
@@ -28,13 +27,7 @@ export default function RootLayout() {
 
   return (
     <ThemeProviderContext>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          animation: 'slide_from_right',
-        }}
-      >
-        {/* No need to repeat headerShown: false now */}
+      <Stack screenOptions={{headerShown: false,animation: 'slide_from_right',}}>
         <Stack.Screen name="index" />
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="login" />
@@ -45,7 +38,6 @@ export default function RootLayout() {
         <Stack.Screen name="forgot/otp" />
         <Stack.Screen name="forgot/password" />
         <Stack.Screen name="forgot/final" />
-        <Stack.Screen name="profile/index" />
         <Stack.Screen name="profile/name" />
         <Stack.Screen name="profile/language" />
         <Stack.Screen name="profile/payment" />
@@ -74,6 +66,7 @@ export default function RootLayout() {
         <Stack.Screen name="home/map" />
         <Stack.Screen name="+not-found" />
       </Stack>
+      <Toast/>
       <StatusBar style="auto" />
     </ThemeProviderContext>
   );
