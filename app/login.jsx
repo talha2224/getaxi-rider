@@ -35,8 +35,6 @@ const Login = () => {
 
             const { code, msg, data } = response.data;
 
-            console.log(data, 'data')
-
             if (code === 200) {
                 Toast.show({ type: "success", text1: msg });
                 await AsyncStorage.setItem("language", "English");

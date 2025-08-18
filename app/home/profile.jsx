@@ -1,10 +1,12 @@
 import { Entypo, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Image, Modal, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import userImg from '../../assets/images/home/user.png';
 import BottomNavbar from '../../components/BottomNavbar';
+import config from '../../config';
 import { useTheme } from '../../hooks/themeContext';
 
 const translations = {
@@ -102,9 +104,6 @@ const translations = {
 
 const getTranslations = async (language) => {
     try {
-
-        console.log(language, 'language')
-
         if (translations[language]) {
             return translations[language];
         }
@@ -135,6 +134,7 @@ const useLanguage = () => {
 const Profile = () => {
     const { isDarkTheme, toggleTheme } = useTheme();
     const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
+    const [profileData, setProfileData] = useState(null);
     const words = useLanguage();
 
     const handleLogout = () => {
@@ -150,12 +150,25 @@ const Profile = () => {
     const handleOpenLogoutModal = () => {
         setIsLogoutModalVisible(true);
     };
+
+    useEffect(() => {
+        (async () => {
+            try {
+                let uid = await AsyncStorage.getItem("user_id");
+                let result = await axios.get(`${config.baseUrl}/rider/info/${uid}`)
+                setProfileData(result.data.data)
+            } catch (error) {
+                console.log(error, 'error in fetching progile')
+            }
+        })()
+    }, [])
+
     return (
         <View style={[styles.container, { backgroundColor: isDarkTheme ? '#0F172A' : '#fff' }]}>
             <View style={[styles.header, { borderBottomColor: isDarkTheme ? '#1e293b' : '#eee' }]}>
-                <Image source={userImg} style={styles.avatar} />
-                <Text style={[styles.userName, { color: isDarkTheme ? '#fff' : '#000' }]}>Oliver Sandra</Text>
-                <Text style={[styles.userPhone, { color: isDarkTheme ? '#ccc' : '#777' }]}>+123456789</Text>
+                <Image source={profileData?.profile_img ? {uri:profileData?.profile_img} : userImg} style={styles.avatar} />
+                <Text style={[styles.userName, { color: isDarkTheme ? '#fff' : '#000' }]}>{profileData?.username}</Text>
+                <Text style={[styles.userPhone, { color: isDarkTheme ? '#ccc' : '#777' }]}>{profileData?.phone_number}</Text>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>

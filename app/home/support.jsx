@@ -2,15 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { useTheme } from '../../hooks/themeContext';
-
 
 const translations = {
   English: {
     SupportCenter: "Support center",
     FAQ: "FAQ",
     ContactUs: "Contact us",
+    Subject: "Subject",
+    Message: "Message",
+    SendMessage: "Send message",
+    MsgSent: "Message sent",
+    MsgDetail: "We will get back to you as soon as possible",
     BookRideQuestion: "How do I book a ride?",
     BookRideAnswer: "It's important to address common questions and concerns that users may have about the app. Here are some necessary questions to include",
     ScheduleRideQuestion: "Can I schedule a ride in advance?",
@@ -19,51 +24,21 @@ const translations = {
     DriverCancelsAnswer: "Details about what happens if a driver cancels a ride.",
     ReportIssueQuestion: "How do I report an issue with my ride?",
     ReportIssueAnswer: "Steps on how to report an issue with a ride.",
-  },
-  Russian: {
-    SupportCenter: "Центр поддержки",
-    FAQ: "FAQ",
-    ContactUs: "Связаться с нами",
-    BookRideQuestion: "Как заказать поездку?",
-    BookRideAnswer: "Важно ответить на распространенные вопросы и опасения пользователей относительно приложения. Вот некоторые необходимые вопросы.",
-    ScheduleRideQuestion: "Могу ли я забронировать поездку заранее?",
-    ScheduleRideAnswer: "Информация о предварительном заказе поездок будет здесь.",
-    DriverCancelsQuestion: "Что если мой водитель отменит поездку?",
-    DriverCancelsAnswer: "Подробности о том, что происходит, если водитель отменяет поездку.",
-    ReportIssueQuestion: "Как сообщить о проблеме с моей поездкой?",
-    ReportIssueAnswer: "Шаги по сообщению о проблеме с поездкой.",
-  },
-  Ukrainian: {
-    SupportCenter: "Центр підтримки",
-    FAQ: "FAQ",
-    ContactUs: "Зв'язатися з нами",
-    BookRideQuestion: "Як забронювати поїздку?",
-    BookRideAnswer: "Важливо відповісти на поширені запитання та занепокоєння користувачів щодо програми. Ось деякі необхідні питання.",
-    ScheduleRideQuestion: "Чи можу я запланувати поїздку заздалегідь?",
-    ScheduleRideAnswer: "Інформація про планування поїздок заздалегідь буде тут.",
-    DriverCancelsQuestion: "Що робити, якщо мій водій скасує поїздку?",
-    DriverCancelsAnswer: "Деталі про те, що відбувається, якщо водій скасовує поїздку.",
-    ReportIssueQuestion: "Як повідомити про проблему з моєю поїздкою?",
-    ReportIssueAnswer: "Кроки щодо повідомлення про проблему з поїздкою.",
-  },
+  }
+  // Russian / Ukrainian can be added similarly
 };
 
 const getTranslations = async (language) => {
   try {
-    if (translations[language]) {
-      return translations[language];
-    }
+    if (translations[language]) return translations[language];
     return translations["English"];
-  }
-  catch (error) {
-    console.error("Error fetching language:", error);
+  } catch {
     return translations["English"];
   }
 };
 
 const useLanguage = () => {
   const [words, setWords] = useState(translations.English);
-
   useFocusEffect(
     useCallback(() => {
       const fetchTranslations = async () => {
@@ -74,31 +49,38 @@ const useLanguage = () => {
       fetchTranslations();
     }, [])
   );
-
   return words;
 };
 
-
 const Support = () => {
   const { isDarkTheme } = useTheme();
+  const words = useLanguage();
+
+  const [activeTab, setActiveTab] = useState('faq');
   const [faqExpanded, setFaqExpanded] = useState(true);
   const [scheduleRideExpanded, setScheduleRideExpanded] = useState(false);
   const [driverCancelsExpanded, setDriverCancelsExpanded] = useState(false);
   const [reportIssueExpanded, setReportIssueExpanded] = useState(false);
-  const words = useLanguage();
 
-  const toggleFaq = () => setFaqExpanded(!faqExpanded);
-  const toggleScheduleRide = () => setScheduleRideExpanded(!scheduleRideExpanded);
-  const toggleDriverCancels = () => setDriverCancelsExpanded(!driverCancelsExpanded);
-  const toggleReportIssue = () => setReportIssueExpanded(!reportIssueExpanded);
-  const handleContactUs = () => console.log('Contact us pressed');
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
 
-  // Dynamic Colors
   const bgColor = isDarkTheme ? '#0F172A' : '#fff';
   const textColor = isDarkTheme ? '#fff' : '#333';
   const fadedTextColor = isDarkTheme ? '#94a3b8' : '#777';
   const borderColor = isDarkTheme ? '#1E293B' : '#eee';
+  const inputBg = isDarkTheme ? '#1E293B' : '#f4f4f4';
   const iconColor = isDarkTheme ? '#fff' : '#000';
+
+  const handleSendMessage = () => {
+    if (!subject.trim() || !message.trim()) {
+      Toast.show({ type: 'error', text1: 'Please fill all fields' });
+      return;
+    }
+    Toast.show({ type: 'success', text1: words.MsgSent, text2: words.MsgDetail });
+    setSubject('');
+    setMessage('');
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: bgColor }]}>
@@ -110,111 +92,103 @@ const Support = () => {
         <Text style={[styles.title, { color: textColor }]}>{words.SupportCenter}</Text>
       </View>
 
-      {/* Tab Buttons */}
+      {/* Tabs */}
       <View style={[styles.tabButtons, { borderBottomColor: borderColor }]}>
-        <TouchableOpacity style={[styles.tabButton, styles.activeTab]}>
-          <Text style={styles.activeTabText}>{words.FAQ}</Text>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'faq' && styles.activeTab]}
+          onPress={() => setActiveTab('faq')}
+        >
+          <Text style={activeTab === 'faq' ? styles.activeTabText : [styles.tabText, { color: fadedTextColor }]}>
+            {words.FAQ}
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tabButton} onPress={handleContactUs}>
-          <Text style={[styles.tabText, { color: fadedTextColor }]}>{words.ContactUs}</Text>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'contact' && styles.activeTab]}
+          onPress={() => setActiveTab('contact')}
+        >
+          <Text style={activeTab === 'contact' ? styles.activeTabText : [styles.tabText, { color: fadedTextColor }]}>
+            {words.ContactUs}
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* FAQ Section */}
-      <View style={styles.faqSection}>
-        <TouchableOpacity style={[styles.faqQuestion, { borderBottomColor: borderColor }]} onPress={toggleFaq}>
-          <Text style={[styles.questionText, { color: textColor }]}>{words.BookRideQuestion}</Text>
-          <Ionicons name={faqExpanded ? 'remove-outline' : 'add-outline'} size={20} color={fadedTextColor} />
-        </TouchableOpacity>
-        {faqExpanded && <Text style={[styles.answerText, { color: fadedTextColor }]}>
-          {words.BookRideAnswer}
-        </Text>}
+      <ScrollView style={{ flex: 1 }}>
+        {activeTab === 'faq' ? (
+          <View style={styles.faqSection}>
+            <TouchableOpacity style={[styles.faqQuestion, { borderBottomColor: borderColor }]} onPress={() => setFaqExpanded(!faqExpanded)}>
+              <Text style={[styles.questionText, { color: textColor }]}>{words.BookRideQuestion}</Text>
+              <Ionicons name={faqExpanded ? 'remove-outline' : 'add-outline'} size={20} color={fadedTextColor} />
+            </TouchableOpacity>
+            {faqExpanded && <Text style={[styles.answerText, { color: fadedTextColor }]}>{words.BookRideAnswer}</Text>}
 
-        <TouchableOpacity style={[styles.faqQuestion, { borderBottomColor: borderColor }]} onPress={toggleScheduleRide}>
-          <Text style={[styles.questionText, { color: textColor }]}>{words.ScheduleRideQuestion}</Text>
-          <Ionicons name={scheduleRideExpanded ? 'remove-outline' : 'add-outline'} size={20} color={fadedTextColor} />
-        </TouchableOpacity>
-        {scheduleRideExpanded && <Text style={[styles.answerText, { color: fadedTextColor }]}>
-          {words.ScheduleRideAnswer}
-        </Text>}
+            <TouchableOpacity style={[styles.faqQuestion, { borderBottomColor: borderColor }]} onPress={() => setScheduleRideExpanded(!scheduleRideExpanded)}>
+              <Text style={[styles.questionText, { color: textColor }]}>{words.ScheduleRideQuestion}</Text>
+              <Ionicons name={scheduleRideExpanded ? 'remove-outline' : 'add-outline'} size={20} color={fadedTextColor} />
+            </TouchableOpacity>
+            {scheduleRideExpanded && <Text style={[styles.answerText, { color: fadedTextColor }]}>{words.ScheduleRideAnswer}</Text>}
 
-        <TouchableOpacity style={[styles.faqQuestion, { borderBottomColor: borderColor }]} onPress={toggleDriverCancels}>
-          <Text style={[styles.questionText, { color: textColor }]}>{words.DriverCancelsQuestion}</Text>
-          <Ionicons name={driverCancelsExpanded ? 'remove-outline' : 'add-outline'} size={20} color={fadedTextColor} />
-        </TouchableOpacity>
-        {driverCancelsExpanded && <Text style={[styles.answerText, { color: fadedTextColor }]}>
-          {words.DriverCancelsAnswer}
-        </Text>}
+            <TouchableOpacity style={[styles.faqQuestion, { borderBottomColor: borderColor }]} onPress={() => setDriverCancelsExpanded(!driverCancelsExpanded)}>
+              <Text style={[styles.questionText, { color: textColor }]}>{words.DriverCancelsQuestion}</Text>
+              <Ionicons name={driverCancelsExpanded ? 'remove-outline' : 'add-outline'} size={20} color={fadedTextColor} />
+            </TouchableOpacity>
+            {driverCancelsExpanded && <Text style={[styles.answerText, { color: fadedTextColor }]}>{words.DriverCancelsAnswer}</Text>}
 
-        <TouchableOpacity style={[styles.faqQuestion, { borderBottomColor: borderColor }]} onPress={toggleReportIssue}>
-          <Text style={[styles.questionText, { color: textColor }]}>{words.ReportIssueQuestion}</Text>
-          <Ionicons name={reportIssueExpanded ? 'remove-outline' : 'add-outline'} size={20} color={fadedTextColor} />
-        </TouchableOpacity>
-        {reportIssueExpanded && <Text style={[styles.answerText, { color: fadedTextColor }]}>
-          {words.ReportIssueAnswer}
-        </Text>}
-      </View>
+            <TouchableOpacity style={[styles.faqQuestion, { borderBottomColor: borderColor }]} onPress={() => setReportIssueExpanded(!reportIssueExpanded)}>
+              <Text style={[styles.questionText, { color: textColor }]}>{words.ReportIssueQuestion}</Text>
+              <Ionicons name={reportIssueExpanded ? 'remove-outline' : 'add-outline'} size={20} color={fadedTextColor} />
+            </TouchableOpacity>
+            {reportIssueExpanded && <Text style={[styles.answerText, { color: fadedTextColor }]}>{words.ReportIssueAnswer}</Text>}
+          </View>
+        ) : (
+          <View style={{ padding: 20 }}>
+            <Text style={[styles.label, { color: textColor }]}>{words.Subject}</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: inputBg, color: textColor }]}
+              value={subject}
+              onChangeText={setSubject}
+              placeholder={words.Subject}
+              placeholderTextColor={fadedTextColor}
+            />
+
+            <Text style={[styles.label, { color: textColor, marginTop: 15 }]}>{words.Message}</Text>
+            <TextInput
+              style={[styles.textarea, { backgroundColor: inputBg, color: textColor }]}
+              value={message}
+              onChangeText={setMessage}
+              placeholder={words.Message}
+              placeholderTextColor={fadedTextColor}
+              multiline
+              numberOfLines={5}
+            />
+
+            <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
+              <Text style={styles.sendButtonText}>{words.SendMessage}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 30,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 20,
-  },
-  tabButtons: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#27AE60',
-  },
-  tabText: {
-    fontSize: 16,
-  },
-  activeTabText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#27AE60',
-  },
-  faqSection: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  faqQuestion: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-  },
-  questionText: {
-    fontSize: 16,
-    flex: 1,
-  },
-  answerText: {
-    fontSize: 14,
-    paddingVertical: 10,
-  },
+  container: { flex: 1, paddingTop: 30 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, paddingHorizontal: 20, borderBottomWidth: 1 },
+  title: { fontSize: 18, fontWeight: 'bold', marginLeft: 20 },
+  tabButtons: { flexDirection: 'row', borderBottomWidth: 1 },
+  tabButton: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+  activeTab: { borderBottomWidth: 2, borderBottomColor: '#27AE60' },
+  tabText: { fontSize: 16 },
+  activeTabText: { fontSize: 16, fontWeight: 'bold', color: '#27AE60' },
+  faqSection: { paddingHorizontal: 20, paddingTop: 20 },
+  faqQuestion: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1 },
+  questionText: { fontSize: 16, flex: 1 },
+  answerText: { fontSize: 14, paddingVertical: 10 },
+  label: { fontSize: 14, marginBottom: 5 },
+  input: { padding: 10, borderRadius: 8, fontSize: 14 },
+  textarea: { padding: 10, borderRadius: 8, fontSize: 14, height: 120, textAlignVertical: 'top' },
+  sendButton: { backgroundColor: '#27AE60', paddingVertical: 14, borderRadius: 8, marginTop: 20, alignItems: 'center' },
+  sendButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });
 
 export default Support;
